@@ -4,4 +4,5 @@ A SIMPLE QUADRUPED ASSEMBLY.
 Static gaits
 # Footholds
 Use DH matrix to plan footholds
-
+# Includes
+Images of soldiworks design
