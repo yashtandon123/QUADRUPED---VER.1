@@ -1,0 +1,215 @@
+/*
+ * n.c
+ *
+ * Created: 5/23/2018 4:29:48 AM
+ *  Author: Yash
+ */ 
+
+#undef F_CPU
+#define F_CPU 8000000UL
+
+#include <avr/io.h>
+#include <util/delay.h>
+
+#define servo1 6
+#define servo2 10
+#define servo3 14
+#define servo4 18
+#define servo5 22
+#define servo6 26
+#define servo7 30
+#define servo8 34
+#define servo9 38
+#define servo10 42
+#define servo11 46
+#define servo12 50
+
+#define call_servo(x) ((x==1)?(servo5):((x==2)?(servo7):((x==3)?(servo9):(servo11))))
+		
+double angle_right1[2]={35.0,35.0}; // 15 45 15 45 75 45 75 45
+double angle_right2[2]={5.0,65.0};
+double angle_left1[2]={55.0,45.0}; // left foot always moves 90- theta degrees 50,50
+double angle_left2[2]={80.0,45.0};
+
+uint16_t timing;
+
+void start()
+{
+	TWCR|=(1<<TWSTA)|(1<<TWEN)|(1<<TWINT);
+	while(!(TWCR&(1<<TWINT)));
+}
+
+void stop()
+{
+	TWCR|=(1<<TWSTO)|(1<<TWEN)|(1<<TWINT);
+	while(TWCR&(1<<TWSTO));
+}
+void write(uint8_t w)
+{
+	TWDR=w;
+	TWCR=(1<<TWEN)|(1<<TWINT);
+	while(!(TWCR&(1<<TWINT)));
+}
+
+void calibrate()
+{	
+	start();
+	write(0b10000000);// setting prescalar value. now output = 50 hz
+	write(0xFE);
+	write(121);
+	stop();
+	
+	_delay_us(500);
+	
+	start();
+	write(0b10000000);
+	write(0b0);
+	write(0b00100000);// auto-increment on and sleep mode off
+	stop();
+	
+	_delay_us(500);// max time required for module to come out of sleep mode
+	
+}
+
+void set_angle(int x, double angle)
+{
+	double y;
+	start();
+	write(0b10000000);
+	write(servo1);  // address of servo pin
+	write(0);
+	write(0);// led_on_low
+	y= ((0.38 + (angle/180.0))*4095.0/11.1);
+	timing=(int)y;
+	uint8_t t1=timing;
+	uint8_t t2=(0b00001111&(timing>>8));
+	write(t1);
+	write(t2);
+	stop();
+}
+
+void hip_joint(double angle[4])
+{
+	//double angle[4]={0.0,0.0,90.0,90.0};
+	int i;
+	double y;
+	uint8_t t1,t2;
+	start();
+	write(0b10000000);
+	write(servo1);
+	for(i=0;i<4;i++)
+	{
+		write(0);
+		write(0);
+		y= ((0.38 + (angle[i]/180.0))*4095.0/11.1);
+		timing=(int)y;
+		t1=timing;
+		t2=(0b00001111&(timing>>8));
+		write(t1);
+		write(t2);
+		
+	}
+	stop();
+}
+
+void leg(uint8_t x, double angle[2])
+{
+	uint8_t i;
+	double y;
+	uint8_t t1,t2;
+	start();
+	write(0b10000000);
+	write(call_servo(x)); // returns the required address
+	
+	for(i=0;i<=1;i++)
+	{
+		write(0);
+		write(0);
+		y= ((0.38 + (angle[i]/180.0))*4095.0/11.1);
+		timing=(int)y;
+		t1=timing;
+		t2=(0b00001111&(timing>>8));
+		write(t1);
+		write(t2);
+		
+	}
+	stop();
+}
+
+void start_pose()
+{
+	leg(1,angle_right1);
+	leg(2,angle_right2);
+	leg(3,angle_left1);
+	leg(4,angle_left2);
+}
+
+void right_front_lift()
+{
+    //double angle_y[4]={120.0,120.0,90.0,90.0};
+	//hip_joint(angle_y);	
+	angle_right1[1]=70.0; //  leg lift 80
+	leg(1,angle_right1);
+	_delay_ms(1000);
+	angle_right1[0]=50.0;
+	leg(1,angle_right1);
+	_delay_ms(1000);
+	angle_right1[1]=35.0;
+	leg(1,angle_right1);
+	
+	//_delay_ms(1000);
+	
+	//angle_right1[0]=55.0;
+	//angle_right1[1]=30.0;
+	//leg(1,angle_right1);
+	//_delay_ms(1000);
+	
+	//angle_right1[1]=30.0;
+	//leg(1,angle_right1);
+	//_delay_ms(1000);
+}
+
+void right_rear_lift()
+{
+	angle_right2[1]=80.0; //  leg lift
+	leg(2,angle_right2);
+	_delay_ms(1000);
+	
+	//angle_right2[0]=40.0;
+	//angle_right2[1]=85.0; //  leg lift
+	
+	//leg(2,angle_right2);
+	//angle_right2[1]=45.0;
+	//leg(2,angle_right2);
+}
+
+int main(void)
+{
+	DDRA=0b00000001;
+	TWBR=32;
+	TWCR|=(1<<TWEN)|(1<<TWINT);
+	//while(!((TWCR)&(1<<TWINT)));
+	calibrate();
+	//set_angle((servo1),0.0);
+    
+	//double angle_right[2]={0.0,45.0};
+	//double angle_left[2]={90.0,45.0}; // left foot always moves 90- theta degrees
+	
+	double angle_y[4]={90.0,90.0,90.0,90.0};
+	hip_joint(angle_y);
+	start_pose();
+	_delay_ms(10);
+	
+	right_front_lift();
+	_delay_ms(1000);
+	//right_rear_lift();
+	
+	//leg(2,angle_right);
+	//leg(3,angle_left);
+	//leg(4,angle_left);
+	
+	while(1)
+    {
+    //func();    //TODO:: Please write your application code 
+    }
+}
