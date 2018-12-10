@@ -1,2 +1,7 @@
-# QUADRUPED---VER.1
-A SIMPLE QUADRUPED ASSEMBLY. This is the first version. It might undergo revision.
+# QUADRUPED
+A SIMPLE QUADRUPED ASSEMBLY. 
+# Gait
+Static gaits
+# Footholds
+Use DH matrix to plan footholds
+
